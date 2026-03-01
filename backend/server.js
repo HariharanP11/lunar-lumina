@@ -12,6 +12,7 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const Groq = require("groq-sdk");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 app.use(cors());
@@ -22,6 +23,15 @@ const upload = multer();
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
+
+// Gemini client (optional)
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || null;
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+
+// Simple in-memory rate limiter for /ai-tutor (max 5 requests/minute per IP)
+const aiTutorRateLimit = new Map();
+const AI_TUTOR_WINDOW_MS = 60 * 1000;
+const AI_TUTOR_MAX_REQUESTS = 5;
 app.post("/generate-quiz", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
@@ -103,7 +113,17 @@ Your tasks:
    - If improving consistently and score > 75% -> increase
    - If stagnating -> keep same
    - If declining -> reduce
-7. Generate a 3-day study plan targeting weak areas.
+7. Generate a 3-day study plan. For studyPlan.day1, studyPlan.day2, studyPlan.day3 use STRICT rules:
+   - Use clear, specific concept names only (e.g. Loops, Recursion, CPU Scheduling, Deadlock, Graphs, Dynamic Programming). Do NOT use vague phrases like "improve basics", "revise fundamentals", "strengthen understanding".
+   - Each day's string must use this EXACT structure (with newlines):
+     Focus Areas:
+     - Concept Name
+     - Concept Name
+     Reinforcement:
+     - Concept Name
+     Maintain Strength:
+     - Concept Name
+   - Do NOT generate any links. Do NOT add explanations. Only output the structured study plan with concept names.
 8. Return structured JSON.
 
 Return ONLY this JSON format, no explanation:
@@ -118,9 +138,9 @@ Return ONLY this JSON format, no explanation:
   "riskLevel": "Low | Medium | High",
   "recommendedDifficulty": "string",
   "studyPlan": {
-    "day1": "string",
-    "day2": "string",
-    "day3": "string"
+    "day1": "Focus Areas:\\n- Concept\\n- Concept\\nReinforcement:\\n- Concept\\nMaintain Strength:\\n- Concept",
+    "day2": "same structure",
+    "day3": "same structure"
   },
   "improvementStrategies": ["string", "string", "string"],
   "motivation": "string"
@@ -189,6 +209,88 @@ Return ONLY a JSON array like: ["explanation1", "explanation2", ...]
   } catch (error) {
     console.error("EXPLAIN ERROR:", error);
     res.status(500).json({ error: "Explanation failed" });
+  }
+});
+
+app.post("/ai-tutor", async (req, res) => {
+  try {
+    if (!genAI || !GEMINI_API_KEY) {
+      return res
+        .status(503)
+        .json({ reply: "AI Tutor is temporarily unavailable." });
+    }
+
+    const now = Date.now();
+    const key = req.ip || "global";
+    const entry = aiTutorRateLimit.get(key) || {
+      count: 0,
+      windowStart: now,
+    };
+
+    if (now - entry.windowStart > AI_TUTOR_WINDOW_MS) {
+      entry.count = 0;
+      entry.windowStart = now;
+    }
+
+    if (entry.count >= AI_TUTOR_MAX_REQUESTS) {
+      aiTutorRateLimit.set(key, entry);
+      return res
+        .status(429)
+        .json({ reply: "AI Tutor is temporarily unavailable." });
+    }
+
+    entry.count += 1;
+    aiTutorRateLimit.set(key, entry);
+
+    const { userMessage, weakTopics, learningVelocity, riskLevel } = req.body || {};
+
+    if (!userMessage || typeof userMessage !== "string") {
+      return res
+        .status(400)
+        .json({ reply: "Please provide a valid question for the AI tutor." });
+    }
+
+    const weakText = Array.isArray(weakTopics) ? weakTopics.join(", ") : "None";
+    const velocityText =
+      typeof learningVelocity === "number"
+        ? String(learningVelocity)
+        : "Unknown";
+    const riskText = typeof riskLevel === "string" ? riskLevel : "Unknown";
+
+    const prompt = `
+You are an academic AI tutor.
+The student learning profile:
+Weak Topics: ${weakText}
+Learning Velocity: ${velocityText}
+Risk Level: ${riskText}
+
+Student Question:
+${userMessage}
+
+Provide:
+- Clear explanation
+- Simple language
+- Practical example
+- Short response (max 200 words)
+- No hallucinated links
+`;
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = (response && response.text && response.text()) || "";
+
+    const words = text.split(/\s+/);
+    if (words.length > 200) {
+      text = words.slice(0, 200).join(" ");
+    }
+
+    return res.json({ reply: text.trim() || "AI Tutor is temporarily unavailable." });
+  } catch (error) {
+    console.error("AI TUTOR ERROR:", error);
+    return res
+      .status(503)
+      .json({ reply: "AI Tutor is temporarily unavailable." });
   }
 });
 

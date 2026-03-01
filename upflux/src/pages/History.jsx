@@ -1,10 +1,12 @@
 import { useEffect, useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { AuthContext } from "../context/AuthContext";
 
 function History() {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,15 +51,65 @@ function History() {
   }, [user]);
 
   if (loading) {
-    return <p style={{ padding: "40px" }}>Loading history...</p>;
+    return (
+      <div style={{ padding: "40px" }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            marginBottom: "20px",
+            padding: "8px 16px",
+            border: "1px solid #e5e7eb",
+            borderRadius: "6px",
+            backgroundColor: "#f9fafb",
+            cursor: "pointer",
+            fontSize: "14px"
+          }}
+        >
+          ← Back
+        </button>
+        <p>Loading history...</p>
+      </div>
+    );
   }
 
   if (attempts.length === 0) {
-    return <p style={{ padding: "40px" }}>No quiz attempts yet. Take a quiz to see your history.</p>;
+    return (
+      <div style={{ padding: "40px" }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            marginBottom: "20px",
+            padding: "8px 16px",
+            border: "1px solid #e5e7eb",
+            borderRadius: "6px",
+            backgroundColor: "#f9fafb",
+            cursor: "pointer",
+            fontSize: "14px"
+          }}
+        >
+          ← Back
+        </button>
+        <p>No quiz attempts yet. Take a quiz to see your history.</p>
+      </div>
+    );
   }
 
   return (
     <div style={{ padding: "40px" }}>
+      <button
+        onClick={() => navigate(-1)}
+        style={{
+          marginBottom: "20px",
+          padding: "8px 16px",
+          border: "1px solid #e5e7eb",
+          borderRadius: "6px",
+          backgroundColor: "#f9fafb",
+          cursor: "pointer",
+          fontSize: "14px"
+        }}
+      >
+        ← Back
+      </button>
       <h2>Quiz History</h2>
       <p>Total Attempts: {attempts.length}</p>
 

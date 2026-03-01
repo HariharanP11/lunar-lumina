@@ -66,17 +66,21 @@ export function subscribeToLeaderboardUsers(callback, errorCallback) {
       }
       if (accuracy == null) return;
 
+      const xp = typeof a.xp === "number" ? a.xp : 0;
+
       let stats = statsByUser.get(userId);
       if (!stats) {
         stats = {
           quizzesAttempted: 0,
           totalScore: 0,
           sumScores: 0,
+          totalXP: 0,
           lastQuizDate: null,
           recentWeekSum: 0,
           recentWeekCount: 0,
           previousWeekSum: 0,
           previousWeekCount: 0,
+          accuracies: [],
         };
         statsByUser.set(userId, stats);
       }
@@ -84,6 +88,8 @@ export function subscribeToLeaderboardUsers(callback, errorCallback) {
       stats.quizzesAttempted += 1;
       stats.totalScore += accuracy;
       stats.sumScores += accuracy;
+      stats.totalXP += xp;
+      stats.accuracies.push(accuracy);
 
       if (createdAt) {
         if (!stats.lastQuizDate || createdAt > stats.lastQuizDate) {
@@ -106,6 +112,10 @@ export function subscribeToLeaderboardUsers(callback, errorCallback) {
     statsByUser.forEach((stats, userId) => {
       const profile = profiles.find((p) => p.id === userId);
       const profileData = profile ? profile.data : {};
+      const learningProfile = profileData?.learningProfile || {};
+      const learningVelocity = typeof learningProfile.learningVelocity === "number"
+        ? learningProfile.learningVelocity
+        : 0;
 
       const quizzesAttempted = stats.quizzesAttempted || 0;
       if (quizzesAttempted === 0) return;
@@ -123,6 +133,8 @@ export function subscribeToLeaderboardUsers(callback, errorCallback) {
         email: (profileData?.email || "").trim(),
         profileImage: profileData?.profileImage || null,
         totalScore: stats.totalScore,
+        totalXP: stats.totalXP || 0,
+        learningVelocity,
         quizzesAttempted,
         averageScore,
         lastQuizDate: stats.lastQuizDate,

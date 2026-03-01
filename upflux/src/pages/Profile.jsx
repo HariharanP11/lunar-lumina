@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { buildLearningBehaviorProfileForUser } from "../services/learningProfileEngine";
 import { AuthContext } from "../context/AuthContext";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
@@ -27,6 +28,9 @@ function Profile() {
               username: data.username || ""
             });
           }
+
+          // Build or refresh learning behavior profile (logic only, no UI coupling)
+          await buildLearningBehaviorProfileForUser(user.uid);
         } catch (error) {
           console.error("Error fetching user data:", error);
         } finally {

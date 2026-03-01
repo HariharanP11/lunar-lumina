@@ -1,10 +1,14 @@
 import { useEffect, useState, useContext, useMemo, useRef } from "react";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, doc, getDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
+import SuggestionPopup from "../components/SuggestionPopup";
+import StudyPlanWithLinks from "../components/StudyPlanWithLinks";
+import { getActivityDays, computeStreak, isStreakAboutToExpire } from "../utils/streakUtils";
+import { sendEmailAlert } from "../services/emailAlertService";
 
 import {
   LineChart,
@@ -38,6 +42,11 @@ function Dashboard() {
   const [aiInsights, setAiInsights] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const hasFetchedInsights = useRef(false);
+  const hasTriedEmailAlert = useRef(false);
+
+  // Intelligent suggestion popup
+  const [suggestion, setSuggestion] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
 
   // ---------------- FETCH DATA ----------------
   useEffect(() => {
@@ -91,6 +100,124 @@ function Dashboard() {
 
     fetchAttempts();
   }, [user]);
+
+  // ---------------- EMAIL ALERT ENGINE ----------------
+  useEffect(() => {
+    if (!user?.uid || hasTriedEmailAlert.current) return;
+    hasTriedEmailAlert.current = true;
+
+    sendEmailAlert({
+      uid: user.uid,
+      email: user.email,
+      username: user.displayName || "",
+    }).catch((err) => {
+      console.error("Email alert error:", err);
+    });
+  }, [user]);
+
+  // ---------------- LOGIN SUGGESTION POPUP ENGINE ----------------
+  useEffect(() => {
+    const evaluateSuggestions = async () => {
+      if (!user?.uid) return;
+
+      // Only once per login/session
+      const key = `learning_popup_shown_${user.uid}`;
+      if (sessionStorage.getItem(key)) return;
+
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const profile = userDoc.exists() ? userDoc.data().learningProfile || null : null;
+
+        const accuracies = attempts
+          .map((a) => {
+            if (typeof a.accuracy === "number") return a.accuracy;
+            if (typeof a.score === "number" && typeof a.total === "number" && a.total > 0) {
+              return (a.score / a.total) * 100;
+            }
+            return null;
+          })
+          .filter((v) => v !== null);
+
+        const latestAccuracy = accuracies.length ? accuracies[accuracies.length - 1] : null;
+        const velocityValue = typeof profile?.learningVelocity === "number" ? profile.learningVelocity : 0;
+        const plateau = Boolean(profile?.plateauDetected);
+        const topicMastery = profile?.topicMastery || {};
+
+        // Weak topic detection: lowest mastery below threshold
+        let weakestTopic = null;
+        let weakestValue = Infinity;
+        Object.entries(topicMastery).forEach(([topic, value]) => {
+          if (typeof value === "number" && value < weakestValue) {
+            weakestValue = value;
+            weakestTopic = topic;
+          }
+        });
+        const hasWeakTopic = weakestTopic && weakestValue < 60;
+
+        // Streak detection: use shared streak util
+        const activityDays = getActivityDays(attempts);
+        const streakAboutToExpire = isStreakAboutToExpire(activityDays);
+
+        // Choose exactly one suggestion by priority
+        let chosen = null;
+
+        if (!attempts.length) {
+          // First-time or no-activity suggestion
+          chosen = {
+            type: "first-quiz",
+            title: "Welcome back!",
+            message:
+              "Start your first quiz today to unlock personalized insights, streak tracking, and smarter recommendations."
+          };
+        } else if (plateau) {
+          chosen = {
+            type: "plateau",
+            title: "You're on a plateau",
+            message:
+              "Your last few quiz scores are almost flat. Try switching topics or difficulty for a short focused sprint to break the stagnation."
+          };
+        } else if (velocityValue < 0 && latestAccuracy !== null) {
+          chosen = {
+            type: "decline",
+            title: "Performance is dipping",
+            message:
+              "Your recent quiz trend is declining. Revisit your weakest topics and do a short revision quiz to recover momentum."
+          };
+        } else if (hasWeakTopic) {
+          chosen = {
+            type: "weak-topic",
+            title: "Target your weakest topic",
+            message: `Your lowest mastery is in ${weakestTopic}. Take a quick quiz focused on this topic to turn it into a strength.`
+          };
+        } else if (streakAboutToExpire) {
+          chosen = {
+            type: "streak",
+            title: "Keep your streak alive",
+            message:
+              "You're close to losing your recent quiz streak. Take a short quiz today to lock in another day of progress."
+          };
+        } else if (latestAccuracy !== null && velocityValue >= 0) {
+          // Positive growth suggestion as a fallback when things are going well
+          chosen = {
+            type: "growth",
+            title: "Nice progress so far",
+            message:
+              "Your scores are trending in a healthy direction. Try a slightly higher difficulty quiz to keep pushing your growth."
+          };
+        }
+
+        if (chosen) {
+          setSuggestion(chosen);
+          setShowPopup(true);
+          sessionStorage.setItem(key, "1");
+        }
+      } catch (err) {
+        console.error("Error evaluating login suggestions:", err);
+      }
+    };
+
+    evaluateSuggestions();
+  }, [user, attempts]);
 
   // ---------------- FILTER BY TOPIC ----------------
   const displayAttempts = useMemo(() => {
@@ -306,7 +433,7 @@ function Dashboard() {
           Start Quiz
         </button>
 
-      {/* XP */}
+      {/* XP & Streak */}
       <div
         style={{
           marginTop: "20px",
@@ -318,6 +445,24 @@ function Dashboard() {
       >
         <h3>Level: {level}</h3>
         <p>Total XP: {totalXP}</p>
+        <p style={{ marginTop: "6px", fontWeight: 500 }}>
+          Streak: {(() => {
+            const days = getActivityDays(attempts);
+            const { currentStreak } = computeStreak(days);
+            return currentStreak > 0 ? `${currentStreak} day${currentStreak !== 1 ? "s" : ""}` : "No streak yet";
+          })()}
+        </p>
+        {(() => {
+          const days = getActivityDays(attempts);
+          if (isStreakAboutToExpire(days) && computeStreak(days).currentStreak > 0) {
+            return (
+              <p style={{ marginTop: "6px", color: "#b45309", fontSize: "13px" }}>
+                Take a quiz today to keep your streak.
+              </p>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {/* Topic Filter */}
@@ -436,10 +581,7 @@ function Dashboard() {
 
           {aiInsights.studyPlan && (
             <div>
-              <h4>3-Day Study Plan</h4>
-              <p><strong>Day 1:</strong> {aiInsights.studyPlan.day1}</p>
-              <p><strong>Day 2:</strong> {aiInsights.studyPlan.day2}</p>
-              <p><strong>Day 3:</strong> {aiInsights.studyPlan.day3}</p>
+              <StudyPlanWithLinks studyPlan={aiInsights.studyPlan} />
             </div>
           )}
 
@@ -487,6 +629,13 @@ function Dashboard() {
         </div>
       )}
       </div>
+      {showPopup && suggestion && (
+        <SuggestionPopup
+          title={suggestion.title}
+          message={suggestion.message}
+          onClose={() => setShowPopup(false)}
+        />
+      )}
     </div>
   );
 }

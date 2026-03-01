@@ -1,9 +1,16 @@
-import { Link } from "react-router-dom";
-import { useContext } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useContext, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 
 function Home() {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login", { replace: true });
+    }
+  }, [user, navigate]);
 
   const buttonStyle = {
     backgroundColor: '#4a4a4a',
@@ -30,10 +37,8 @@ function Home() {
         </p>
       </div>
       <div style={{ marginTop: '30px', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
-        {user ? (
+        {user && (
           <Link to="/dashboard" style={buttonStyle}>Go to Dashboard</Link>
-        ) : (
-          <Link to="/login" style={buttonStyle}>Login</Link>
         )}
       </div>
     </div>

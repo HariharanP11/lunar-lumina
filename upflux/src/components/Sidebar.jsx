@@ -106,6 +106,15 @@ function Sidebar({ isOpen, onClose }) {
 
         <div
           style={menuItemStyle}
+          onClick={() => handleNavigation('/history')}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+        >
+          📜 History
+        </div>
+
+        <div
+          style={menuItemStyle}
           onClick={() => handleNavigation('/performance')}
           onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
           onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
@@ -120,6 +129,15 @@ function Sidebar({ isOpen, onClose }) {
           onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
         >
           🏆 Leaderboard
+        </div>
+
+        <div
+          style={menuItemStyle}
+          onClick={() => handleNavigation('/ai-tutor')}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+        >
+          🤖 AI Tutor
         </div>
 
         <div

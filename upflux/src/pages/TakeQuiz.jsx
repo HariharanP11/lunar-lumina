@@ -1,9 +1,13 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import questions from "../data/programmingQuestions";
-import { addDoc, collection, serverTimestamp, query, where, orderBy, getDocs, limit } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, query, where, orderBy, getDocs, limit, doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { AuthContext } from "../context/AuthContext";
+import { shuffleArray, getStaticQuestionId, withShuffledOptions } from "../utils/quizUtils";
+import { calculateXpForAttempt } from "../utils/xpUtils";
+import { getActivityDays, computeStreak } from "../utils/streakUtils";
+import StudyPlanWithLinks from "../components/StudyPlanWithLinks";
 
 function TakeQuiz() {
   const { user } = useContext(AuthContext);
@@ -20,6 +24,8 @@ const [selectedDifficulty, setSelectedDifficulty] = useState("All");
   const [quizFinished, setQuizFinished] = useState(false);
   const [topicStats, setTopicStats] = useState({});
   const [userAnswers, setUserAnswers] = useState([]);
+  const [selectedConfidence, setSelectedConfidence] = useState(null);
+  const [questionStartTime, setQuestionStartTime] = useState(null);
 
   // ---------- TIMER AND DATE STATES ----------
   const [startTime, setStartTime] = useState(null);
@@ -36,25 +42,105 @@ const [selectedDifficulty, setSelectedDifficulty] = useState("All");
   const hasAnalyzed = useRef(false);
   const [explanations, setExplanations] = useState(null);
   const [explainingWrong, setExplainingWrong] = useState(false);
+  const [lastEarnedXp, setLastEarnedXp] = useState(null);
+  const [currentStreakValue, setCurrentStreakValue] = useState(null);
+
+  // ---------- PER-QUESTION TIMING ----------
+  useEffect(() => {
+    if (!quizStarted) return;
+    setQuestionStartTime(new Date());
+  }, [quizStarted, currentQuestion]);
 
   // ---------- START NORMAL QUIZ ----------
-  const startQuiz = () => {
+  const startQuiz = async () => {
     if (!selectedTopic) {
       alert("Please select a topic");
       return;
     }
-console.log(selectedTopic, selectedDifficulty);
-    let filtered = questions.filter((q) =>
-  (selectedTopic === "All" || q.topic === selectedTopic) &&
-  (selectedDifficulty === "All" || q.difficulty === selectedDifficulty)
-);
 
-    if (filtered.length === 0) {
+    // Filter by topic and difficulty
+    let filteredPool = questions.filter((q) =>
+      (selectedTopic === "All" || q.topic === selectedTopic) &&
+      (selectedDifficulty === "All" || q.difficulty === selectedDifficulty)
+    );
+
+    if (filteredPool.length === 0) {
       alert("No questions available for this topic.");
       return;
     }
 
-    setFilteredQuestions(filtered);
+    // Attach deterministic IDs
+    filteredPool = filteredPool.map((q) => ({
+      ...q,
+      id: getStaticQuestionId(q)
+    }));
+
+    let quizQuestions;
+
+    // If no logged-in user, just shuffle and take first 10
+    if (!user?.uid) {
+      quizQuestions = shuffleArray(filteredPool).slice(0, 10);
+    } else {
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.exists() ? userSnap.data() : {};
+      const usedStaticQuestionIds = userData.usedStaticQuestionIds || {};
+
+      const poolKey = `${selectedTopic || "All"}|${selectedDifficulty || "All"}`;
+      const usedForKey = new Set(usedStaticQuestionIds[poolKey] || []);
+
+      const unusedPool = filteredPool.filter((q) => !usedForKey.has(q.id));
+
+      quizQuestions = [];
+
+      // First prefer unused questions
+      const shuffledUnused = shuffleArray(unusedPool);
+      quizQuestions.push(...shuffledUnused.slice(0, 10));
+
+      // If we still need more to reach 10, reuse from the full pool without duplicates
+      if (quizQuestions.length < 10) {
+        const remaining = 10 - quizQuestions.length;
+        const alreadyIds = new Set(quizQuestions.map((q) => q.id));
+        const refillCandidates = shuffleArray(filteredPool).filter(
+          (q) => !alreadyIds.has(q.id)
+        );
+        quizQuestions.push(...refillCandidates.slice(0, remaining));
+      }
+
+      // Ensure exactly 10, no duplicates
+      const uniqueById = [];
+      const seen = new Set();
+      for (const q of quizQuestions) {
+        if (!q || !q.id || seen.has(q.id)) continue;
+        uniqueById.push(q);
+        seen.add(q.id);
+        if (uniqueById.length === 10) break;
+      }
+      quizQuestions = uniqueById;
+
+      // Persist updated used IDs for this pool
+      const updatedIdsForKey = Array.from(
+        new Set([
+          ...usedForKey,
+          ...quizQuestions.map((q) => q.id)
+        ])
+      );
+
+      await setDoc(
+        userRef,
+        {
+          usedStaticQuestionIds: {
+            ...usedStaticQuestionIds,
+            [poolKey]: updatedIdsForKey
+          }
+        },
+        { merge: true }
+      );
+    }
+
+    // Shuffle options per question and ensure exactly 10 questions
+    const quizOfTen = withShuffledOptions(quizQuestions).slice(0, 10);
+    setFilteredQuestions(quizOfTen);
     setStartTime(new Date());
     setQuizDate(new Date());
     setQuizStarted(true);
@@ -80,8 +166,10 @@ console.log(selectedTopic, selectedDifficulty);
     );
 
     const data = await response.json();
+    const limited = Array.isArray(data) ? data.slice(0, 10) : [];
+    const prepared = withShuffledOptions(limited);
 
-    setFilteredQuestions(data);
+    setFilteredQuestions(prepared);
     setStartTime(new Date());
     setQuizDate(new Date());
     setQuizStarted(true);
@@ -89,8 +177,13 @@ console.log(selectedTopic, selectedDifficulty);
 
   // ---------- HANDLE NEXT ----------
   const handleNext = () => {
+    if (!selectedAnswer) return;
+
     const current = filteredQuestions[currentQuestion];
     const isCorrect = selectedAnswer === current.correctAnswer;
+    const now = new Date();
+    const responseTimeMs = questionStartTime ? now - questionStartTime : null;
+    const confidenceValue = selectedConfidence || "Medium";
 
     if (isCorrect) setScore((prev) => prev + 1);
 
@@ -100,7 +193,9 @@ console.log(selectedTopic, selectedDifficulty);
         question: current.question,
         userAnswer: selectedAnswer,
         correctAnswer: current.correctAnswer,
-        isCorrect
+        isCorrect,
+        confidence: confidenceValue,
+        responseTimeMs
       }
     ]);
 
@@ -118,6 +213,7 @@ console.log(selectedTopic, selectedDifficulty);
     });
 
     setSelectedAnswer(null);
+    setSelectedConfidence(null);
 
     if (currentQuestion + 1 < filteredQuestions.length) {
       setCurrentQuestion((prev) => prev + 1);
@@ -135,21 +231,78 @@ console.log(selectedTopic, selectedDifficulty);
     const saveAndAnalyze = async () => {
       if (!user?.uid) return;
 
-      const accuracy = (score / filteredQuestions.length) * 100;
-      const xpEarned = score * 10;
+      const total = filteredQuestions.length;
+      const accuracy = total > 0 ? (score / total) * 100 : 0;
+      const quizDifficulty = selectedDifficulty !== "All"
+        ? selectedDifficulty
+        : difficulty || "medium";
 
-      // Save result to Firestore
+      // Previous attempt accuracy for XP improvement bonus
+      let previousAccuracy = null;
+      try {
+        const prevQ = query(
+          collection(db, "quizAttempts"),
+          where("userId", "==", user.uid),
+          orderBy("createdAt", "desc"),
+          limit(1)
+        );
+        const prevSnap = await getDocs(prevQ);
+        if (prevSnap.docs.length > 0) {
+          const d = prevSnap.docs[0].data();
+          if (typeof d.accuracy === "number") previousAccuracy = d.accuracy;
+          else if (typeof d.score === "number" && typeof d.total === "number" && d.total > 0) {
+            previousAccuracy = (d.score / d.total) * 100;
+          }
+        }
+      } catch (_) {}
+
+      const { xp: xpEarned } = calculateXpForAttempt(
+        score,
+        total,
+        quizDifficulty,
+        topicStats,
+        previousAccuracy
+      );
+
+      setLastEarnedXp(xpEarned);
+
       await addDoc(collection(db, "quizAttempts"), {
         userId: user.uid,
         score,
-        total: filteredQuestions.length,
+        total,
         accuracy,
         topics: topicStats,
         xp: xpEarned,
-        createdAt: serverTimestamp()
+        difficulty: quizDifficulty,
+        createdAt: serverTimestamp(),
+        userAnswers
       });
 
-      // Fetch last 3 previous quiz scores
+      // Update user streak
+      try {
+        const allQ = query(
+          collection(db, "quizAttempts"),
+          where("userId", "==", user.uid),
+          orderBy("createdAt", "asc")
+        );
+        const allSnap = await getDocs(allQ);
+        const allAttempts = allSnap.docs.map((d) => ({ createdAt: d.data().createdAt }));
+        const activityDays = getActivityDays(allAttempts);
+        const { currentStreak, lastActivityDateKey } = computeStreak(activityDays);
+        setCurrentStreakValue(currentStreak);
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+            currentStreak,
+            lastActivityDateKey: lastActivityDateKey ?? null
+          },
+          { merge: true }
+        );
+      } catch (e) {
+        console.error("Streak update error:", e);
+      }
+
+      // Fetch last 3 previous quiz scores (excluding the one we just saved)
       let previousQuizzes = [];
       try {
         const q = query(
@@ -159,18 +312,12 @@ console.log(selectedTopic, selectedDifficulty);
           limit(4)
         );
         const snapshot = await getDocs(q);
-        // skip first (the one we just saved) and take up to 3
         previousQuizzes = snapshot.docs.slice(1, 4).map((doc) => ({
           overallScore: doc.data().accuracy || 0
         }));
       } catch (err) {
         console.error("Error fetching previous quizzes:", err);
       }
-
-      // Determine quiz difficulty label
-      const quizDifficulty = selectedDifficulty !== "All"
-        ? selectedDifficulty
-        : difficulty || "medium";
 
       // Call analyze endpoint
       setAnalyzing(true);
@@ -235,6 +382,12 @@ console.log(selectedTopic, selectedDifficulty);
       <div style={{ padding: "40px" }}>
         <h2>Quiz Completed</h2>
         <p>Score: {score} / {filteredQuestions.length}</p>
+        {lastEarnedXp != null && <p>XP earned: {lastEarnedXp}</p>}
+        {currentStreakValue != null && (
+          <p>
+            Streak: {currentStreakValue} day{currentStreakValue !== 1 ? "s" : ""}
+          </p>
+        )}
         <p>Date: {quizDate ? quizDate.toLocaleDateString() : 'N/A'}</p>
         <p>Time Taken: {formattedTime}</p>
 
@@ -311,12 +464,7 @@ console.log(selectedTopic, selectedDifficulty);
             <p>{analysis.recommendedDifficulty}</p>
 
             {analysis.studyPlan && (
-              <>
-                <h3>3-Day Study Plan</h3>
-                <p><strong>Day 1:</strong> {analysis.studyPlan.day1}</p>
-                <p><strong>Day 2:</strong> {analysis.studyPlan.day2}</p>
-                <p><strong>Day 3:</strong> {analysis.studyPlan.day3}</p>
-              </>
+              <StudyPlanWithLinks studyPlan={analysis.studyPlan} />
             )}
 
             {analysis.improvementStrategies?.length > 0 && (

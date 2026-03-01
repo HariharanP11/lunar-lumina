@@ -84,6 +84,8 @@ function Leaderboard() {
         return {
           ...u,
           totalScore: Number(u.totalScore || 0),
+          totalXP: Number(u.totalXP || 0),
+          learningVelocity: Number(u.learningVelocity ?? 0),
           quizzesAttempted: Number(u.quizzesAttempted || 0),
           averageScore: Number(u.averageScore || 0),
           username: derived,
@@ -92,8 +94,8 @@ function Leaderboard() {
       .filter((u) => u.username);
 
     const sortedAll = normalized.sort((a, b) => {
-      if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-      return b.averageScore - a.averageScore;
+      if (b.totalXP !== a.totalXP) return b.totalXP - a.totalXP;
+      return b.learningVelocity - a.learningVelocity;
     });
 
     const totalRanked = sortedAll.length;
@@ -164,7 +166,7 @@ function Leaderboard() {
           <div>
             <h1 className="leaderboard-title">Leaderboard</h1>
             <p className="leaderboard-subtitle">
-              Ranked by total score with live updates from Firebase.
+              Ranked by Total XP, then Learning velocity (tie breaker).
             </p>
           </div>
 
@@ -231,9 +233,9 @@ function Leaderboard() {
               {currentUserStats ? (
                 <>
                   <div className="stat-item">
-                    <span className="stat-label">Total Score</span>
+                    <span className="stat-label">Total XP</span>
                     <span className="stat-value">
-                      {currentUserStats.totalScore.toFixed(1)}
+                      {currentUserStats.totalXP}
                     </span>
                   </div>
                   <div className="stat-item">
@@ -249,9 +251,9 @@ function Leaderboard() {
                     </span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Trend</span>
+                    <span className="stat-label">Velocity</span>
                     <span className="stat-value">
-                      {getTrendArrow(currentUserStats)}
+                      {currentUserStats.learningVelocity.toFixed(2)}
                     </span>
                   </div>
                 </>
@@ -279,10 +281,10 @@ function Leaderboard() {
             <div className="table-header-row">
               <span>Rank</span>
               <span>Username</span>
-              <span>Total Score</span>
+              <span>Total XP</span>
+              <span>Velocity</span>
               <span>Quizzes</span>
               <span>Average</span>
-              <span>Trend</span>
             </div>
 
             {loading ? (
@@ -316,7 +318,6 @@ function Leaderboard() {
               <div className="table-body">
                 {topTen.map((u) => {
                   const isCurrent = authUser?.uid === u.id;
-                  const trend = getTrendArrow(u);
 
                   let rankClass = "";
                   if (u.rank === 1) rankClass = "row--gold";
@@ -346,10 +347,10 @@ function Leaderboard() {
                       </span>
 
                       <span className="username-cell">{u.username}</span>
-                      <span>{u.totalScore.toFixed(1)}</span>
+                      <span>{u.totalXP}</span>
+                      <span>{u.learningVelocity.toFixed(2)}</span>
                       <span>{u.quizzesAttempted}</span>
                       <span>{u.averageScore.toFixed(1)}%</span>
-                      <span>{trend}</span>
                     </div>
                   );
                 })}

@@ -7,6 +7,7 @@ import History from "./pages/History.jsx";
 import Profile from "./pages/Profile.jsx";
 import Performance from "./pages/Performance.jsx";
 import Leaderboard from "./pages/Leaderboard.jsx";
+import AITutor from "./pages/AITutor.jsx";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 
 function App() {
@@ -65,6 +66,15 @@ function App() {
         element={
           <ProtectedRoute>
             <Leaderboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ai-tutor"
+        element={
+          <ProtectedRoute>
+            <AITutor />
           </ProtectedRoute>
         }
       />
