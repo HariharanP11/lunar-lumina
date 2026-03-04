@@ -10,6 +10,7 @@ import Leaderboard from "./pages/Leaderboard.jsx";
 import AITutor from "./pages/AITutor.jsx";
 import Challenges from "./pages/Challenges.jsx";
 import StudyPlanner from "./pages/StudyPlanner.jsx";
+import ConceptModule from "./pages/ConceptModule.jsx";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 
 function App() {
@@ -95,6 +96,15 @@ function App() {
         element={
           <ProtectedRoute>
             <StudyPlanner />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/concept/:topic"
+        element={
+          <ProtectedRoute>
+            <ConceptModule />
           </ProtectedRoute>
         }
       />

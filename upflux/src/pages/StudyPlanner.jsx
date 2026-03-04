@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import { studyCurriculum } from "../data/studyCurriculum";
@@ -121,10 +122,8 @@ function StudyPlanner() {
                           {topic.description}
                         </div>
                       </div>
-                      <a
-                        href={topic.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <Link
+                        to={`/concept/${new URL(topic.url, "http://x").searchParams.get("concept")}`}
                         style={linkStyle}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = "#4f46e5";
@@ -134,7 +133,7 @@ function StudyPlanner() {
                         }}
                       >
                         Study →
-                      </a>
+                      </Link>
                     </div>
                   ))}
                 </div>
