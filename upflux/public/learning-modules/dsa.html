@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lunar Lumina Learning Module — DSA</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --card: rgba(255, 255, 255, 0.06);
+        --text: #eef2ff;
+        --muted: rgba(238, 242, 255, 0.7);
+        --accent: #a78bfa;
+        --accent2: #22c55e;
+        --border: rgba(255, 255, 255, 0.14);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(900px 500px at 10% 15%, rgba(167, 139, 250, 0.22), transparent 60%),
+          radial-gradient(700px 420px at 85% 20%, rgba(34, 197, 94, 0.18), transparent 55%),
+          radial-gradient(900px 600px at 50% 90%, rgba(99, 102, 241, 0.14), transparent 55%),
+          var(--bg);
+      }
+      a { color: var(--text); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 56px; }
+      header {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+      .kicker {
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+      h1 { margin: 0; font-size: 30px; }
+      .sub {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+        margin-top: 18px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 18px 18px;
+        backdrop-filter: blur(10px);
+      }
+      .card h2 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pill {
+        font-size: 12px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .card p { margin: 0 0 10px 0; color: var(--muted); line-height: 1.6; }
+      .card ul { margin: 0; padding-left: 18px; color: var(--text); line-height: 1.7; }
+      .toc {
+        margin-top: 14px;
+        border: 1px dashed rgba(255, 255, 255, 0.18);
+        border-radius: 14px;
+        padding: 14px 16px;
+      }
+      .toc strong { display: block; margin-bottom: 8px; }
+      .toc a { color: var(--muted); }
+      .toc a:hover { color: var(--text); }
+      .sep { height: 1px; background: rgba(255,255,255,0.10); margin: 18px 0; }
+      .hint {
+        margin-top: 18px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      code {
+        background: rgba(255, 255, 255, 0.10);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 2px 6px;
+        border-radius: 8px;
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="kicker">Lunar Lumina Learning Module</div>
+        <h1>Data Structures &amp; Algorithms (DSA)</h1>
+        <p class="sub">
+          Use this module as your in-app replacement for external tutorials. Each section includes a quick explanation,
+          a checklist, and practice suggestions.
+        </p>
+        <div class="toc">
+          <strong>Jump to a topic</strong>
+          <div>
+            <a href="#arrays-basics">Arrays &amp; Basics</a> ·
+            <a href="#stack">Stack</a> ·
+            <a href="#queue">Queue</a> ·
+            <a href="#linked-list">Linked List</a> ·
+            <a href="#binary-search">Binary Search</a> ·
+            <a href="#sorting-algorithms">Sorting Algorithms</a> ·
+            <a href="#recursion">Recursion</a> ·
+            <a href="#binary-tree">Binary Tree</a> ·
+            <a href="#heap">Heap</a> ·
+            <a href="#hash-table">Hash Table</a> ·
+            <a href="#graphs">Graphs</a> ·
+            <a href="#dfs-bfs">DFS &amp; BFS</a> ·
+            <a href="#dynamic-programming">Dynamic Programming</a> ·
+            <a href="#avl-tree">AVL Tree</a> ·
+            <a href="#trie">Trie</a> ·
+            <a href="#topological-sort">Topological Sort</a>
+          </div>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="card" id="arrays-basics">
+          <h2>Arrays &amp; Basics <span class="pill">Core</span></h2>
+          <p>Arrays are contiguous memory blocks. Master indexing, traversal patterns, and time/space complexity.</p>
+          <ul>
+            <li>Know \(O(1)\) access, \(O(n)\) search, and typical insert/delete costs.</li>
+            <li>Practice two-pointer, sliding window, prefix sums, and frequency counting.</li>
+            <li>Review edge cases: empty input, single element, duplicates, negative numbers.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="stack">
+          <h2>Stack <span class="pill">LIFO</span></h2>
+          <p>Stacks model “last in, first out” behavior and are often used for backtracking and parsing.</p>
+          <ul>
+            <li>Use for parentheses validation, next greater element, monotonic stack patterns.</li>
+            <li>Understand call stack + recursion relationship.</li>
+            <li>Practice converting infix ⇄ postfix, evaluating expressions.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="queue">
+          <h2>Queue <span class="pill">FIFO</span></h2>
+          <p>Queues model “first in, first out” behavior. Variants power graph traversal and scheduling.</p>
+          <ul>
+            <li>Know normal queue vs deque; when to use each.</li>
+            <li>Practice BFS, level-order traversal, sliding window maximum (deque).</li>
+            <li>Understand circular buffer implementation idea.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="linked-list">
+          <h2>Linked List <span class="pill">Pointers</span></h2>
+          <p>Linked lists trade fast insertions for slower random access. Great for pointer manipulation practice.</p>
+          <ul>
+            <li>Practice reversing (iterative + recursive), detecting cycles (Floyd).</li>
+            <li>Master dummy head, fast/slow pointers, merge two lists.</li>
+            <li>Be careful with null checks and pointer updates order.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="binary-search">
+          <h2>Binary Search <span class="pill">Divide &amp; Conquer</span></h2>
+          <p>Binary search finds an element (or boundary) in a sorted space by halving the search range.</p>
+          <ul>
+            <li>Use <code>low</code>/<code>high</code> invariants; avoid infinite loops with mid calculation.</li>
+            <li>Practice boundary searches: first/last occurrence, lower/upper bound.</li>
+            <li>Apply to “answer space” problems (min/max feasible value).</li>
+          </ul>
+        </section>
+
+        <section class="card" id="sorting-algorithms">
+          <h2>Sorting Algorithms <span class="pill">Fundamentals</span></h2>
+          <p>Sorting improves search and enables greedy/2-pointer techniques.</p>
+          <ul>
+            <li>Know trade-offs: quicksort avg \(O(n \log n)\), mergesort stable, heapsort in-place-ish.</li>
+            <li>Practice “sort then scan”: intervals, two-sum variants, grouping duplicates.</li>
+            <li>Understand stability and when it matters.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="recursion">
+          <h2>Recursion <span class="pill">Mindset</span></h2>
+          <p>Recursion solves a problem by reducing it to smaller subproblems until a base case.</p>
+          <ul>
+            <li>Always define base case + progress toward it.</li>
+            <li>Trace using a small input; learn to visualize stack frames.</li>
+            <li>Practice tree recursion: permutations, subsets, DFS.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="binary-tree">
+          <h2>Binary Tree <span class="pill">Traversals</span></h2>
+          <p>Binary trees model hierarchical data. Traversals are the building blocks for most problems.</p>
+          <ul>
+            <li>Know inorder/preorder/postorder, level-order (BFS).</li>
+            <li>Practice height/diameter, LCA, path sums.</li>
+            <li>Watch for null nodes and recursion depth.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="heap">
+          <h2>Heap <span class="pill">Priority</span></h2>
+          <p>Heaps efficiently get min/max elements. Useful for top-k, scheduling, and streaming data.</p>
+          <ul>
+            <li>Know push/pop \(O(\log n)\), peek \(O(1)\).</li>
+            <li>Practice top-k frequent, merge k sorted lists, running median (two heaps).</li>
+            <li>Understand heapify concept and comparator usage.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="hash-table">
+          <h2>Hash Table <span class="pill">Lookup</span></h2>
+          <p>Hash tables give average \(O(1)\) lookup/insert and power counting + mapping patterns.</p>
+          <ul>
+            <li>Practice frequency maps, two-sum, anagram grouping.</li>
+            <li>Know collision concept; prefer immutable keys.</li>
+            <li>Be mindful of worst-case and memory usage.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="graphs">
+          <h2>Graphs <span class="pill">Modeling</span></h2>
+          <p>Graphs represent relationships. Choose adjacency list for sparse graphs, matrix for dense graphs.</p>
+          <ul>
+            <li>Identify directed vs undirected, weighted vs unweighted.</li>
+            <li>Practice connected components, shortest path basics.</li>
+            <li>Track visited carefully to avoid infinite loops.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="dfs-bfs">
+          <h2>DFS &amp; BFS <span class="pill">Traversal</span></h2>
+          <p>DFS explores deep; BFS explores level by level. Both solve reachability and component problems.</p>
+          <ul>
+            <li>BFS is ideal for shortest path in unweighted graphs.</li>
+            <li>DFS is great for cycle detection, topological ordering, recursion practice.</li>
+            <li>Practice grid problems (islands) using both approaches.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="dynamic-programming">
+          <h2>Dynamic Programming <span class="pill">Optimization</span></h2>
+          <p>DP stores results of overlapping subproblems to avoid repeated work.</p>
+          <ul>
+            <li>Steps: define state, transition, base case, iteration order.</li>
+            <li>Practice 1D DP (stairs, house robber), knapsack patterns, LIS basics.</li>
+            <li>Try memoization first, then convert to tabulation.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="avl-tree">
+          <h2>AVL Tree <span class="pill">Balanced BST</span></h2>
+          <p>AVL trees keep height balanced via rotations to guarantee \(O(\log n)\) operations.</p>
+          <ul>
+            <li>Understand balance factor and rotation types (LL, RR, LR, RL).</li>
+            <li>Know why balancing prevents worst-case skew.</li>
+            <li>Practice identifying rotation needed from imbalance pattern.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="trie">
+          <h2>Trie <span class="pill">Strings</span></h2>
+          <p>Tries store prefixes efficiently and help autocomplete and prefix queries.</p>
+          <ul>
+            <li>Practice insert/search, prefix search, word break style problems.</li>
+            <li>Know memory trade-offs vs hashing.</li>
+            <li>Track end-of-word markers properly.</li>
+          </ul>
+        </section>
+
+        <section class="card" id="topological-sort">
+          <h2>Topological Sort <span class="pill">DAG</span></h2>
+          <p>Topological ordering arranges tasks with prerequisites (only works on DAGs).</p>
+          <ul>
+            <li>Practice Kahn’s algorithm (in-degree queue) and DFS postorder.</li>
+            <li>Detect cycles when no node has in-degree 0 (or during DFS).</li>
+            <li>Use for dependency resolution and scheduling problems.</li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="sep"></div>
+      <div class="hint">
+        Recommended next step: revisit your weak topics here, then attempt 10–15 related quiz questions to validate improvement.
+      </div>
+    </div>
+  </body>
+</html>

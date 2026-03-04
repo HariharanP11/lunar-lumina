@@ -66,7 +66,7 @@ function StudyPlanner() {
           📚 Study Planner
         </h1>
         <p style={{ color: "#6b7280", marginBottom: "28px", fontSize: "15px", lineHeight: 1.6 }}>
-          Unit-based curriculum from beginner to advanced. Click any topic to open the GeeksforGeeks tutorial in a new tab.
+          Unit-based curriculum from beginner to advanced. Click any topic to review it in the Lunar Lumina Learning Module.
         </p>
 
         {studyCurriculum.map((section) => {
